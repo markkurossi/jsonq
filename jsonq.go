@@ -34,12 +34,17 @@ func (ctx *Context) Select(q string) *Context {
 	}
 	var result []interface{}
 	for _, sel := range ctx.selection {
-		elements, err := Get(sel, q)
+		value, err := Get(sel, q)
 		if err != nil {
 			ctx.err = err
 			return ctx
 		}
-		result = append(result, elements...)
+		arr, ok := value.([]interface{})
+		if ok {
+			result = append(result, arr...)
+		} else {
+			result = append(result, value)
+		}
 	}
 	ctx.selection = result
 
@@ -104,6 +109,9 @@ func extractStruct(sel interface{}, value reflect.Value) error {
 		switch field.Type().Kind() {
 		case reflect.String:
 			val, err := GetString(sel, tag)
+			if err == ErrorOptionalMissing {
+				continue
+			}
 			if err != nil {
 				return err
 			}

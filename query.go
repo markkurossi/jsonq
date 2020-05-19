@@ -7,40 +7,167 @@
 package jsonq
 
 import (
+	"errors"
 	"fmt"
 	"io"
 )
 
+var (
+	ErrorOptionalMissing = errors.New("optional element missing")
+)
+
 type Query struct {
-	filter Filter
+	left     *Query
+	optional bool
+	key      string
+	filters  []Filter
 }
 
-func (f *Query) Eval(v []interface{}) ([]interface{}, error) {
-	var result []interface{}
-	for idx, item := range v {
-		ok, err := f.filter.Eval(idx, item)
+func (q *Query) String() string {
+	var str, opt string
+	if q.optional {
+		opt = "?"
+	}
+	if q.left != nil {
+		str = fmt.Sprintf("%s.%s%q", q.left.String(), opt, q.key)
+	} else {
+		str = fmt.Sprintf("%s%q", opt, q.key)
+	}
+	for _, f := range q.filters {
+		str += fmt.Sprintf("[%s]", f.String())
+	}
+	return str
+}
+
+type Filter interface {
+	String() string
+	Eval(index int, v interface{}) (bool, error)
+}
+
+func (q *Query) Eval(v interface{}) (interface{}, error) {
+	var err error
+
+	if q.left != nil {
+		v, err = q.left.Eval(v)
 		if err != nil {
 			return nil, err
 		}
-		if ok {
-			result = append(result, item)
+	}
+
+	// Select by key.
+	m, ok := v.(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("jsonq: query '%s' can't index %T", q, v)
+	}
+	child, ok := m[q.key]
+	if !ok {
+		if q.optional {
+			return nil, ErrorOptionalMissing
 		}
+		return nil, fmt.Errorf("jsonq: element '%s' not found", q)
+	}
+	v = child
+
+	if len(q.filters) == 0 {
+		return v, nil
+	}
+
+	var result []interface{}
+	arr, ok := v.([]interface{})
+	if ok {
+		result = arr
+	} else {
+		result = []interface{}{v}
+	}
+
+	for _, filter := range q.filters {
+		var filtered []interface{}
+
+		for idx, item := range result {
+			ok, err := filter.Eval(idx, item)
+			if err != nil {
+				return nil, err
+			}
+			if ok {
+				filtered = append(filtered, item)
+			}
+		}
+
+		result = filtered
 	}
 	return result, nil
 }
 
-type Filter interface {
-	Eval(index int, v interface{}) (bool, error)
+func Parse(q string) (*Query, error) {
+	return parseQuery(NewLexer(q))
 }
 
-func Parse(q string) (*Query, error) {
-	filter, err := parseLogical(NewLexer(q))
+func parseQuery(lexer *Lexer) (*Query, error) {
+	t, err := lexer.Get()
 	if err != nil {
 		return nil, err
 	}
-	return &Query{
-		filter: filter,
-	}, nil
+	var optional bool
+	if t.Type == tQuestionMark {
+		optional = true
+		t, err = lexer.Get()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if t.Type != tString {
+		return nil, lexer.SyntaxError()
+	}
+	q := &Query{
+		optional: optional,
+		key:      t.StrVal,
+	}
+	for {
+		t, err = lexer.Get()
+		if err != nil {
+			if err != io.EOF {
+				return nil, err
+			}
+			break
+		}
+		if t.Type != tDot {
+			lexer.Unget(t)
+			break
+		}
+		t, err = lexer.Get()
+		if err != nil {
+			return nil, err
+		}
+		if t.Type != tString {
+			return nil, lexer.SyntaxError()
+		}
+		q = &Query{
+			left: q,
+			key:  t.StrVal,
+		}
+	}
+
+	// Filters.
+	for {
+		t, err = lexer.Get()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, err
+		}
+		if t.Type != tLBracket {
+			return nil, lexer.SyntaxError()
+		}
+		filter, err := parseLogical(lexer)
+		if err != nil {
+			return nil, err
+		}
+		q.filters = append(q.filters, filter)
+	}
+
+	return q, nil
 }
 
 func parseLogical(lexer *Lexer) (Filter, error) {
@@ -50,13 +177,13 @@ func parseLogical(lexer *Lexer) (Filter, error) {
 	}
 	t, err := lexer.Get()
 	if err != nil {
-		if err == io.EOF {
-			return left, nil
-		}
 		return nil, err
 	}
 	switch t.Type {
-	case tAND, tOR:
+	case tRBracket:
+		return left, nil
+
+	case tAnd, tOr:
 		right, err := parseComparative(lexer)
 		if err != nil {
 			return nil, err
@@ -79,16 +206,10 @@ func parseComparative(lexer *Lexer) (Filter, error) {
 	}
 	t, err := lexer.Get()
 	if err != nil {
-		if err == io.EOF {
-			return &Comparative{
-				Left: left,
-				Op:   left.Type,
-			}, nil
-		}
 		return nil, err
 	}
 	switch t.Type {
-	case tEQ, tNEQ:
+	case tEq, tNeq:
 		right, err := parseAtom(lexer)
 		if err != nil {
 			return nil, err
@@ -100,7 +221,11 @@ func parseComparative(lexer *Lexer) (Filter, error) {
 		}, nil
 
 	default:
-		return nil, lexer.SyntaxError()
+		lexer.Unget(t)
+		return &Comparative{
+			Left: left,
+			Op:   left.Type,
+		}, nil
 	}
 }
 
@@ -110,7 +235,7 @@ func parseAtom(lexer *Lexer) (*Atom, error) {
 		return nil, err
 	}
 	switch t.Type {
-	case tSymbol, tString:
+	case tString:
 		return &Atom{
 			Type:   t.Type,
 			StrVal: t.StrVal,
@@ -127,10 +252,23 @@ func parseAtom(lexer *Lexer) (*Atom, error) {
 	}
 }
 
+type Select struct {
+	Left *Select
+	Key  string
+}
+
+func (ast *Select) Eval(idx int, v interface{}) (bool, error) {
+	return false, fmt.Errorf("Select.Eval not implemented yet")
+}
+
 type Logical struct {
 	Left  Filter
 	Op    TokenType
 	Right Filter
+}
+
+func (ast *Logical) String() string {
+	return fmt.Sprintf("%s%s%s", ast.Left, ast.Op, ast.Right)
 }
 
 func (ast *Logical) Eval(idx int, v interface{}) (bool, error) {
@@ -143,10 +281,10 @@ func (ast *Logical) Eval(idx int, v interface{}) (bool, error) {
 		return false, err
 	}
 	switch ast.Op {
-	case tAND:
+	case tAnd:
 		return lVal && rVal, nil
 
-	case tOR:
+	case tOr:
 		return lVal || rVal, nil
 
 	default:
@@ -160,12 +298,16 @@ type Comparative struct {
 	Right *Atom
 }
 
+func (ast *Comparative) String() string {
+	return fmt.Sprintf("%s%s%s", ast.Left, ast.Op, ast.Right)
+}
+
 func (ast *Comparative) Eval(idx int, v interface{}) (bool, error) {
 	fmt.Printf("Comparative.Eval: %T\n", v)
 	switch ast.Op {
-	case tEQ:
+	case tEq:
 		switch ast.Right.Type {
-		case tSymbol, tString:
+		case tString:
 			field, err := ast.Left.GetString()
 			if err != nil {
 				return false, err
@@ -196,9 +338,22 @@ type Atom struct {
 	Int    int
 }
 
+func (a *Atom) String() string {
+	switch a.Type {
+	case tString:
+		return fmt.Sprintf("%q", a.StrVal)
+
+	case tInt:
+		return fmt.Sprintf("%v", a.Int)
+
+	default:
+		return fmt.Sprintf("{Atom %d}", a.Type)
+	}
+}
+
 func (a *Atom) GetString() (string, error) {
 	switch a.Type {
-	case tSymbol, tString:
+	case tString:
 		return a.StrVal, nil
 
 	default:

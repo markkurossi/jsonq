@@ -51,7 +51,7 @@ func TestGetters(t *testing.T) {
 	}
 	val, err = GetString(v, "issue.key")
 	if err != nil {
-		t.Fatalf("string value not found")
+		t.Fatalf("string value not found: %s", err)
 	}
 	if val != "OP-1" {
 		t.Fatalf("invalid string value: got %s, expected %s", val, "OP-1")
@@ -67,6 +67,7 @@ type Issue struct {
 type Assignment struct {
 	From string `jsonq:"?fromString"`
 	To   string `jsonq:"?toString"`
+	ID   string `jsonq:"?NonExistentID"`
 }
 
 func TestExtract(t *testing.T) {
