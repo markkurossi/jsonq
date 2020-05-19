@@ -15,10 +15,10 @@ import (
 	"unicode"
 )
 
-type TokenType int
+type tokenType int
 
 const (
-	tDot TokenType = iota
+	tDot tokenType = iota
 	tLBracket
 	tRBracket
 	tQuestionMark
@@ -30,7 +30,7 @@ const (
 	tInt
 )
 
-var tokens = map[TokenType]string{
+var tokens = map[tokenType]string{
 	tDot:          ".",
 	tLBracket:     "[",
 	tRBracket:     "]",
@@ -43,36 +43,36 @@ var tokens = map[TokenType]string{
 	tInt:          "int",
 }
 
-func (tt TokenType) String() string {
+func (tt tokenType) String() string {
 	name, ok := tokens[tt]
 	if ok {
 		return name
 	}
-	return fmt.Sprintf("{TokenType %d}", tt)
+	return fmt.Sprintf("{tokenType %d}", tt)
 }
 
-type Token struct {
-	Type   TokenType
+type token struct {
+	Type   tokenType
 	StrVal string
 	Int    int
 }
 
-type Lexer struct {
+type lexer struct {
 	input    string
 	in       *bufio.Reader
 	pos      int
 	lastSize int
-	unget    *Token
+	unget    *token
 }
 
-func NewLexer(input string) *Lexer {
-	return &Lexer{
+func newLexer(input string) *lexer {
+	return &lexer{
 		input: input,
 		in:    bufio.NewReader(strings.NewReader(input)),
 	}
 }
 
-func (l *Lexer) Get() (*Token, error) {
+func (l *lexer) Get() (*token, error) {
 	if l.unget != nil {
 		ret := l.unget
 		l.unget = nil
@@ -84,22 +84,22 @@ func (l *Lexer) Get() (*Token, error) {
 	}
 	switch r {
 	case '.':
-		return &Token{
+		return &token{
 			Type: tDot,
 		}, nil
 
 	case '[':
-		return &Token{
+		return &token{
 			Type: tLBracket,
 		}, nil
 
 	case ']':
-		return &Token{
+		return &token{
 			Type: tRBracket,
 		}, nil
 
 	case '?':
-		return &Token{
+		return &token{
 			Type: tQuestionMark,
 		}, nil
 
@@ -112,7 +112,7 @@ func (l *Lexer) Get() (*Token, error) {
 			l.UnreadRune()
 			return nil, l.SyntaxError()
 		}
-		return &Token{
+		return &token{
 			Type: tEq,
 		}, nil
 
@@ -129,7 +129,7 @@ func (l *Lexer) Get() (*Token, error) {
 			// XXX escapes
 			str = append(str, r)
 		}
-		return &Token{
+		return &token{
 			Type:   tString,
 			StrVal: string(str),
 		}, nil
@@ -151,7 +151,7 @@ func (l *Lexer) Get() (*Token, error) {
 				}
 				str = append(str, r)
 			}
-			return &Token{
+			return &token{
 				Type:   tString,
 				StrVal: string(str),
 			}, nil
@@ -176,7 +176,7 @@ func (l *Lexer) Get() (*Token, error) {
 			if err != nil {
 				return nil, err
 			}
-			return &Token{
+			return &token{
 				Type: tInt,
 				Int:  ival,
 			}, nil
@@ -187,18 +187,18 @@ func (l *Lexer) Get() (*Token, error) {
 	}
 }
 
-func (l *Lexer) Unget(t *Token) {
+func (l *lexer) Unget(t *token) {
 	l.unget = t
 }
 
-func (l *Lexer) ReadRune() (rune, int, error) {
+func (l *lexer) ReadRune() (rune, int, error) {
 	r, s, err := l.in.ReadRune()
 	l.lastSize = s
 	l.pos += s
 	return r, s, err
 }
 
-func (l *Lexer) UnreadRune() error {
+func (l *lexer) UnreadRune() error {
 	err := l.in.UnreadRune()
 	if err != nil {
 		return err
@@ -207,7 +207,7 @@ func (l *Lexer) UnreadRune() error {
 	return nil
 }
 
-func (l *Lexer) SyntaxError() error {
+func (l *lexer) SyntaxError() error {
 	if l.pos == 0 {
 		return fmt.Errorf("syntax error at the beginning of query '%s'",
 			l.input)

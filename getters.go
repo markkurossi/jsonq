@@ -28,8 +28,9 @@ func GetString(value interface{}, q string) (string, error) {
 	}
 }
 
+// Get gets the values pointed by the query q.
 func Get(value interface{}, q string) (interface{}, error) {
-	query, err := Parse(q)
+	query, err := parse(q)
 	if err != nil {
 		return nil, err
 	}
