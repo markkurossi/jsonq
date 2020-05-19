@@ -49,6 +49,15 @@ func TestGetters(t *testing.T) {
 	if err == nil {
 		t.Fatalf("integer value found as string: %s", val)
 	}
+
+	val, err = GetString(v, "issue.fields.project.name")
+	if err != nil {
+		t.Fatalf("string value not found: %s", err)
+	}
+	if val != "Operations" {
+		t.Fatalf("invalid string value: got %s, expected %s", val, "Operations")
+	}
+
 	val, err = GetString(v, "issue.key")
 	if err != nil {
 		t.Fatalf("string value not found: %s", err)
