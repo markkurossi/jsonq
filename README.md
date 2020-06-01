@@ -116,7 +116,7 @@ the field is optional.
 
  - Getters:
    - [X] Number
-   - [ ] Boolean
+   - [X] Boolean
  - Expressions:
    - [ ] Not equal
    - [ ] Number comparison: ==, !=, <, > <=, >=

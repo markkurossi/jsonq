@@ -21,6 +21,7 @@ var assign = `{
         },
         "key": "OP-1",
         "count": 42,
+        "critical": false,
         "changelog": {
             "items": [
                 {
@@ -80,6 +81,14 @@ func TestGetters(t *testing.T) {
 	}
 	if ival != 42 {
 		t.Fatalf("invalid int value: got %v, expected %v", ival, 42)
+	}
+
+	bval, err := GetBool(v, "issue.critical")
+	if err != nil {
+		t.Fatalf("boolean value not found: %s", err)
+	}
+	if bval != false {
+		t.Fatalf("invalid boolean value: got %v, expected %v", ival, false)
 	}
 }
 

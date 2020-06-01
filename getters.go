@@ -54,6 +54,21 @@ func GetInt(value interface{}, q string) (int, error) {
 	return int(v), nil
 }
 
+// GetBool gets the boolean value pointed by the query q.
+func GetBool(value interface{}, q string) (bool, error) {
+	v, err := Get(value, q)
+	if err != nil {
+		return false, err
+	}
+	switch val := v.(type) {
+	case bool:
+		return val, nil
+
+	default:
+		return false, fmt.Errorf("jsonq: value of '%s' is not bool: %T", q, val)
+	}
+}
+
 // Get gets the values pointed by the query q.
 func Get(value interface{}, q string) (interface{}, error) {
 	query, err := parse(q)
