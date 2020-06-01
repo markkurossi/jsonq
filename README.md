@@ -115,7 +115,7 @@ the field is optional.
 ## TODO
 
  - Getters:
-   - [ ] Number
+   - [X] Number
    - [ ] Boolean
  - Expressions:
    - [ ] Not equal

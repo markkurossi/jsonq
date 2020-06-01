@@ -65,6 +65,22 @@ func TestGetters(t *testing.T) {
 	if val != "OP-1" {
 		t.Fatalf("invalid string value: got %s, expected %s", val, "OP-1")
 	}
+
+	nval, err := GetNumber(v, "issue.count")
+	if err != nil {
+		t.Fatalf("number value not found: %s", err)
+	}
+	if nval != float64(42) {
+		t.Fatalf("invalid number value: got %v, expected %v", nval, float64(42))
+	}
+
+	ival, err := GetInt(v, "issue.count")
+	if err != nil {
+		t.Fatalf("int value not found: %s", err)
+	}
+	if ival != 42 {
+		t.Fatalf("invalid int value: got %v, expected %v", ival, 42)
+	}
 }
 
 type Issue struct {

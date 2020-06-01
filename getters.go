@@ -28,6 +28,32 @@ func GetString(value interface{}, q string) (string, error) {
 	}
 }
 
+// GetNumber gets the float64 number value pointed by the query q.
+func GetNumber(value interface{}, q string) (float64, error) {
+	v, err := Get(value, q)
+	if err != nil {
+		return 0, err
+	}
+	switch val := v.(type) {
+	case float64:
+		return val, nil
+
+	default:
+		return 0, fmt.Errorf("jsonq: value of '%s' is not float64: %T", q, val)
+	}
+}
+
+// GetInt gets the integer number value pointed by query q. The
+// function internally gets the value as number and casts it to int
+// type.
+func GetInt(value interface{}, q string) (int, error) {
+	v, err := GetNumber(value, q)
+	if err != nil {
+		return 0, err
+	}
+	return int(v), nil
+}
+
 // Get gets the values pointed by the query q.
 func Get(value interface{}, q string) (interface{}, error) {
 	query, err := parse(q)
