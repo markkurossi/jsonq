@@ -94,6 +94,22 @@ func (ctx *Context) Extract(v interface{}) error {
 		}
 		return extractStruct(ctx.selection[0], pointed)
 
+	case reflect.Slice:
+		elemType := pointed.Type().Elem()
+		if elemType.Kind() != reflect.Struct {
+			return fmt.Errorf("jsonq: slice of %v not supported", elemType)
+		}
+		for _, sel := range ctx.selection {
+			v := reflect.New(elemType)
+			err := extractStruct(sel, reflect.Indirect(v))
+			if err != nil {
+				return err
+			}
+			pointed = reflect.Append(pointed, reflect.Indirect(v))
+		}
+		reflect.Indirect(rv).Set(pointed)
+		return nil
+
 	default:
 		return fmt.Errorf("jsonq: pointed: %s", pointed.Type())
 	}
