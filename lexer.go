@@ -116,6 +116,19 @@ func (l *lexer) Get() (*token, error) {
 			Type: tEq,
 		}, nil
 
+	case '!':
+		r, _, err := l.ReadRune()
+		if err != nil {
+			return nil, err
+		}
+		if r != '=' {
+			l.UnreadRune()
+			return nil, l.SyntaxError()
+		}
+		return &token{
+			Type: tNeq,
+		}, nil
+
 	case '"':
 		var str []rune
 		for {

@@ -25,6 +25,11 @@ var assign = `{
         "changelog": {
             "items": [
                 {
+                    "fieldId": "status",
+                    "toString": "development",
+                    "fromString": "backlog"
+                },
+                {
                     "fieldId": "assignee",
                     "toString": "Veijo Linux",
                     "fromString": null
@@ -188,10 +193,10 @@ func TestExtractPtrArray(t *testing.T) {
 		Select(`issue.changelog.items[fieldId=="assignee"]`).
 		Extract(&history)
 	if err != nil {
-		t.Fatalf("Extract array failed: %s", err)
+		t.Fatalf("Extract ptr array failed: %s", err)
 	}
 	if len(history) != 2 {
-		t.Fatalf("Extract array returned unexpected number of items: %v",
+		t.Fatalf("Extract ptr array returned unexpected number of items: %v",
 			history)
 	}
 	if history[0].To != "Veijo Linux" {
@@ -199,5 +204,28 @@ func TestExtractPtrArray(t *testing.T) {
 	}
 	if history[1].To != "Milton Waddams" {
 		t.Errorf("Invalid second array element: %v", history[1])
+	}
+}
+
+func TestExtractExprs(t *testing.T) {
+	var v interface{}
+	err := json.Unmarshal([]byte(assign), &v)
+	if err != nil {
+		t.Fatalf("json.Unmarshal failed: %s", err)
+	}
+
+	var history []Assignment
+	err = Ctx(v).
+		Select(`issue.changelog.items[fieldId!="assignee"]`).
+		Extract(&history)
+	if err != nil {
+		t.Fatalf("Extract != failed: %s", err)
+	}
+	if len(history) != 1 {
+		t.Fatalf("Extract != returned unexpected number of items: %v",
+			history)
+	}
+	if history[0].To != "development" {
+		t.Errorf("Invalid first array element: %v", history[0])
 	}
 }

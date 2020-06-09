@@ -315,6 +315,24 @@ func (ast *comparative) Eval(idx int, v interface{}) (bool, error) {
 				ast.Right.Type)
 		}
 
+	case tNeq:
+		switch ast.Right.Type {
+		case tString:
+			field, err := ast.Left.GetString()
+			if err != nil {
+				return false, err
+			}
+			val, err := GetString(v, field)
+			if err != nil {
+				return false, err
+			}
+			return val != ast.Right.StrVal, nil
+
+		default:
+			return false, fmt.Errorf("!= not implemented for %s",
+				ast.Right.Type)
+		}
+
 	case tInt:
 		return idx == ast.Left.Int, nil
 
