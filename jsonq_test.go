@@ -175,3 +175,29 @@ func TestExtractArray(t *testing.T) {
 		t.Errorf("Invalid second array element: %v", history[1])
 	}
 }
+
+func TestExtractPtrArray(t *testing.T) {
+	var v interface{}
+	err := json.Unmarshal([]byte(assign), &v)
+	if err != nil {
+		t.Fatalf("json.Unmarshal failed: %s", err)
+	}
+
+	var history []*Assignment
+	err = Ctx(v).
+		Select(`issue.changelog.items[fieldId=="assignee"]`).
+		Extract(&history)
+	if err != nil {
+		t.Fatalf("Extract array failed: %s", err)
+	}
+	if len(history) != 2 {
+		t.Fatalf("Extract array returned unexpected number of items: %v",
+			history)
+	}
+	if history[0].To != "Veijo Linux" {
+		t.Errorf("Invalid first array element: %v", history[0])
+	}
+	if history[1].To != "Milton Waddams" {
+		t.Errorf("Invalid second array element: %v", history[1])
+	}
+}

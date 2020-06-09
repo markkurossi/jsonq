@@ -72,13 +72,16 @@ func (ctx *Context) Extract(v interface{}) error {
 	if ctx.err != nil {
 		return ctx.err
 	}
-	rv := reflect.ValueOf(v)
+	return extract(ctx.selection, reflect.ValueOf(v))
+}
+
+func extract(selection []interface{}, rv reflect.Value) error {
 	if rv.Kind() != reflect.Ptr || rv.IsNil() {
 		return &Error{
-			Type: reflect.TypeOf(v),
+			Type: rv.Type(),
 		}
 	}
-	if len(ctx.selection) == 0 {
+	if len(selection) == 0 {
 		return errors.New("jsonq: empty selection")
 	}
 
@@ -89,26 +92,48 @@ func (ctx *Context) Extract(v interface{}) error {
 		return fmt.Errorf("jsonq: pointers not implemented yet")
 
 	case reflect.Struct:
-		if len(ctx.selection) != 1 {
+		if len(selection) != 1 {
 			return errors.New("jsonq: selection matches more than one item")
 		}
-		return extractStruct(ctx.selection[0], pointed)
+		return extractStruct(selection[0], pointed)
 
 	case reflect.Slice:
 		elemType := pointed.Type().Elem()
-		if elemType.Kind() != reflect.Struct {
-			return fmt.Errorf("jsonq: slice of %v not supported", elemType)
-		}
-		for _, sel := range ctx.selection {
-			v := reflect.New(elemType)
-			err := extractStruct(sel, reflect.Indirect(v))
-			if err != nil {
-				return err
+		switch elemType.Kind() {
+		case reflect.Ptr:
+			// Support slice of pointers to struct.
+			p := elemType.Elem()
+			if p.Kind() != reflect.Struct {
+				return fmt.Errorf("jsonq: slice with invalid pointer type %s",
+					p.Kind())
 			}
-			pointed = reflect.Append(pointed, reflect.Indirect(v))
+			for _, sel := range selection {
+				v := reflect.New(p)
+				err := extract([]interface{}{sel}, v)
+				if err != nil {
+					return err
+				}
+				pointed = reflect.Append(pointed, v)
+			}
+			reflect.Indirect(rv).Set(pointed)
+			return nil
+
+		case reflect.Struct:
+			for _, sel := range selection {
+				v := reflect.New(elemType)
+				err := extract([]interface{}{sel}, v)
+				if err != nil {
+					return err
+				}
+				pointed = reflect.Append(pointed, reflect.Indirect(v))
+			}
+			reflect.Indirect(rv).Set(pointed)
+			return nil
+
+		default:
+			return fmt.Errorf("jsonq: unsupport slice element type: %s",
+				elemType.Kind())
 		}
-		reflect.Indirect(rv).Set(pointed)
-		return nil
 
 	default:
 		return fmt.Errorf("jsonq: pointed: %s", pointed.Type())
