@@ -86,9 +86,16 @@ func (l *lexer) Get() (*token, error) {
 		l.unget = nil
 		return ret, nil
 	}
-	r, _, err := l.ReadRune()
-	if err != nil {
-		return nil, err
+	var r rune
+	var err error
+	for {
+		r, _, err = l.ReadRune()
+		if err != nil {
+			return nil, err
+		}
+		if !unicode.IsSpace(r) {
+			break
+		}
 	}
 	switch r {
 	case '.':
@@ -109,6 +116,32 @@ func (l *lexer) Get() (*token, error) {
 	case '?':
 		return &token{
 			Type: tQuestionMark,
+		}, nil
+
+	case '&':
+		r, _, err = l.ReadRune()
+		if err != nil {
+			return nil, err
+		}
+		if r != '&' {
+			l.UnreadRune()
+			return nil, l.SyntaxError()
+		}
+		return &token{
+			Type: tAnd,
+		}, nil
+
+	case '|':
+		r, _, err = l.ReadRune()
+		if err != nil {
+			return nil, err
+		}
+		if r != '|' {
+			l.UnreadRune()
+			return nil, l.SyntaxError()
+		}
+		return &token{
+			Type: tOr,
 		}, nil
 
 	case '=':

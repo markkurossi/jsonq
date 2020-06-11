@@ -178,27 +178,29 @@ func parseLogical(lexer *lexer) (filter, error) {
 	if err != nil {
 		return nil, err
 	}
-	t, err := lexer.Get()
-	if err != nil {
-		return nil, err
-	}
-	switch t.Type {
-	case tRBracket:
-		return left, nil
-
-	case tAnd, tOr:
-		right, err := parseComparative(lexer)
+	for {
+		t, err := lexer.Get()
 		if err != nil {
 			return nil, err
 		}
-		return &logical{
-			Left:  left,
-			Op:    t.Type,
-			Right: right,
-		}, nil
+		switch t.Type {
+		case tRBracket:
+			return left, nil
 
-	default:
-		return nil, lexer.SyntaxError()
+		case tAnd, tOr:
+			right, err := parseComparative(lexer)
+			if err != nil {
+				return nil, err
+			}
+			left = &logical{
+				Left:  left,
+				Op:    t.Type,
+				Right: right,
+			}
+
+		default:
+			return nil, lexer.SyntaxError()
+		}
 	}
 }
 

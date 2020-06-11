@@ -262,6 +262,14 @@ var exprTests = []struct {
 		q:  `issue.changelog.items[priority>10]`,
 		to: "development",
 	},
+	{
+		q:  `issue.changelog.items[priority == 100 && fieldId == "status"]`,
+		to: "development",
+	},
+	{
+		q:  `issue.changelog.items[priority == 10 || fieldId == "status"][0]`,
+		to: "development",
+	},
 }
 
 func TestExtractExprs(t *testing.T) {

@@ -120,4 +120,5 @@ the field is optional.
  - Expressions:
    - [X] Comparison: ==, !=, <, > <=, >=
    - [ ] Parenthesized sub-expressions
-   - [ ] Chaining logical expressions
+   - [X] Chaining logical expressions
+   - [ ] Number expressions
