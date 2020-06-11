@@ -26,6 +26,10 @@ const (
 	tOr
 	tEq
 	tNeq
+	tLt
+	tLe
+	tGt
+	tGe
 	tString
 	tInt
 )
@@ -39,6 +43,10 @@ var tokens = map[tokenType]string{
 	tOr:           "||",
 	tEq:           "==",
 	tNeq:          "!=",
+	tLt:           "<",
+	tLe:           "<=",
+	tGt:           ">",
+	tGe:           ">=",
 	tString:       "string",
 	tInt:          "int",
 }
@@ -127,6 +135,36 @@ func (l *lexer) Get() (*token, error) {
 		}
 		return &token{
 			Type: tNeq,
+		}, nil
+
+	case '<':
+		r, _, err := l.ReadRune()
+		if err != nil {
+			return nil, err
+		}
+		if r == '=' {
+			return &token{
+				Type: tLe,
+			}, nil
+		}
+		l.UnreadRune()
+		return &token{
+			Type: tLt,
+		}, nil
+
+	case '>':
+		r, _, err := l.ReadRune()
+		if err != nil {
+			return nil, err
+		}
+		if r == '=' {
+			return &token{
+				Type: tGe,
+			}, nil
+		}
+		l.UnreadRune()
+		return &token{
+			Type: tGt,
 		}, nil
 
 	case '"':

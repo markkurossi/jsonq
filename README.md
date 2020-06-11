@@ -118,7 +118,6 @@ the field is optional.
    - [X] Number
    - [X] Boolean
  - Expressions:
-   - [X] Not equal
-   - [ ] Number comparison: ==, !=, <, > <=, >=
+   - [X] Comparison: ==, !=, <, > <=, >=
    - [ ] Parenthesized sub-expressions
    - [ ] Chaining logical expressions

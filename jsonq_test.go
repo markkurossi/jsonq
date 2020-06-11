@@ -26,16 +26,19 @@ var assign = `{
             "items": [
                 {
                     "fieldId": "status",
+                    "priority": 100,
                     "toString": "development",
                     "fromString": "backlog"
                 },
                 {
                     "fieldId": "assignee",
+                    "priority": 10,
                     "toString": "Veijo Linux",
                     "fromString": null
                 },
                 {
                     "fieldId": "assignee",
+                    "priority": 10,
                     "toString": "Milton Waddams",
                     "fromString": "Veijo Linux"
                 }
@@ -207,6 +210,60 @@ func TestExtractPtrArray(t *testing.T) {
 	}
 }
 
+var exprTests = []struct {
+	q  string
+	to string
+}{
+	{
+		q:  `issue.changelog.items[fieldId=="status"]`,
+		to: "development",
+	},
+	{
+		q:  `issue.changelog.items[fieldId!="status"][0]`,
+		to: "Veijo Linux",
+	},
+	{
+		q:  `issue.changelog.items[fieldId<"status"][0]`,
+		to: "Veijo Linux",
+	},
+	{
+		q:  `issue.changelog.items[fieldId<="status"][0]`,
+		to: "development",
+	},
+	{
+		q:  `issue.changelog.items[fieldId>="status"][0]`,
+		to: "development",
+	},
+	{
+		q:  `issue.changelog.items[fieldId>"assignee"]`,
+		to: "development",
+	},
+	{
+		q:  `issue.changelog.items[priority==100]`,
+		to: "development",
+	},
+	{
+		q:  `issue.changelog.items[priority!=100][0]`,
+		to: "Veijo Linux",
+	},
+	{
+		q:  `issue.changelog.items[priority<100][0]`,
+		to: "Veijo Linux",
+	},
+	{
+		q:  `issue.changelog.items[priority<=100][0]`,
+		to: "development",
+	},
+	{
+		q:  `issue.changelog.items[priority>=100][0]`,
+		to: "development",
+	},
+	{
+		q:  `issue.changelog.items[priority>10]`,
+		to: "development",
+	},
+}
+
 func TestExtractExprs(t *testing.T) {
 	var v interface{}
 	err := json.Unmarshal([]byte(assign), &v)
@@ -214,18 +271,20 @@ func TestExtractExprs(t *testing.T) {
 		t.Fatalf("json.Unmarshal failed: %s", err)
 	}
 
-	var history []Assignment
-	err = Ctx(v).
-		Select(`issue.changelog.items[fieldId!="assignee"]`).
-		Extract(&history)
-	if err != nil {
-		t.Fatalf("Extract != failed: %s", err)
-	}
-	if len(history) != 1 {
-		t.Fatalf("Extract != returned unexpected number of items: %v",
-			history)
-	}
-	if history[0].To != "development" {
-		t.Errorf("Invalid first array element: %v", history[0])
+	for _, test := range exprTests {
+		var history []Assignment
+		err = Ctx(v).
+			Select(test.q).
+			Extract(&history)
+		if err != nil {
+			t.Fatalf("Extract %s failed: %s", test.q, err)
+		}
+		if len(history) != 1 {
+			t.Fatalf("Extract != returned unexpected number of items: %v",
+				history)
+		}
+		if history[0].To != test.to {
+			t.Errorf("Invalid To: got %s, expected %s", history[0].To, test.to)
+		}
 	}
 }

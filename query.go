@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 )
 
 var (
@@ -211,7 +212,7 @@ func parseComparative(lexer *lexer) (filter, error) {
 		return nil, err
 	}
 	switch t.Type {
-	case tEq, tNeq:
+	case tEq, tNeq, tLt, tLe, tGt, tGe:
 		right, err := parseAtom(lexer)
 		if err != nil {
 			return nil, err
@@ -245,8 +246,8 @@ func parseAtom(lexer *lexer) (*atom, error) {
 
 	case tInt:
 		return &atom{
-			Type: t.Type,
-			Int:  t.Int,
+			Type:   t.Type,
+			IntVal: t.Int,
 		}, nil
 
 	default:
@@ -300,41 +301,131 @@ func (ast *comparative) Eval(idx int, v interface{}) (bool, error) {
 	case tEq:
 		switch ast.Right.Type {
 		case tString:
-			field, err := ast.Left.GetString()
-			if err != nil {
-				return false, err
-			}
-			val, err := GetString(v, field)
+			val, err := ast.Left.GetStringField(v)
 			if err != nil {
 				return false, err
 			}
 			return val == ast.Right.StrVal, nil
 
+		case tInt:
+			val, err := ast.Left.GetIntField(v)
+			if err != nil {
+				return false, err
+			}
+			return val == ast.Right.IntVal, nil
+
 		default:
-			return false, fmt.Errorf("== not implemented for %s",
+			return false, fmt.Errorf("%s not implemented for %s", ast.Op,
 				ast.Right.Type)
 		}
 
 	case tNeq:
 		switch ast.Right.Type {
 		case tString:
-			field, err := ast.Left.GetString()
-			if err != nil {
-				return false, err
-			}
-			val, err := GetString(v, field)
+			val, err := ast.Left.GetStringField(v)
 			if err != nil {
 				return false, err
 			}
 			return val != ast.Right.StrVal, nil
 
+		case tInt:
+			val, err := ast.Left.GetIntField(v)
+			if err != nil {
+				return false, err
+			}
+			return val != ast.Right.IntVal, nil
+
 		default:
-			return false, fmt.Errorf("!= not implemented for %s",
+			return false, fmt.Errorf("%s not implemented for %s", ast.Op,
+				ast.Right.Type)
+		}
+
+	case tLt:
+		switch ast.Right.Type {
+		case tString:
+			val, err := ast.Left.GetStringField(v)
+			if err != nil {
+				return false, err
+			}
+			return strings.Compare(val, ast.Right.StrVal) < 0, nil
+
+		case tInt:
+			val, err := ast.Left.GetIntField(v)
+			if err != nil {
+				return false, err
+			}
+			return val < ast.Right.IntVal, nil
+
+		default:
+			return false, fmt.Errorf("%s not implemented for %s", ast.Op,
+				ast.Right.Type)
+		}
+
+	case tLe:
+		switch ast.Right.Type {
+		case tString:
+			val, err := ast.Left.GetStringField(v)
+			if err != nil {
+				return false, err
+			}
+			return strings.Compare(val, ast.Right.StrVal) <= 0, nil
+
+		case tInt:
+			val, err := ast.Left.GetIntField(v)
+			if err != nil {
+				return false, err
+			}
+			return val <= ast.Right.IntVal, nil
+
+		default:
+			return false, fmt.Errorf("%s not implemented for %s", ast.Op,
+				ast.Right.Type)
+		}
+
+	case tGt:
+		switch ast.Right.Type {
+		case tString:
+			val, err := ast.Left.GetStringField(v)
+			if err != nil {
+				return false, err
+			}
+			return strings.Compare(val, ast.Right.StrVal) > 0, nil
+
+		case tInt:
+			val, err := ast.Left.GetIntField(v)
+			if err != nil {
+				return false, err
+			}
+			return val > ast.Right.IntVal, nil
+
+		default:
+			return false, fmt.Errorf("%s not implemented for %s", ast.Op,
+				ast.Right.Type)
+		}
+
+	case tGe:
+		switch ast.Right.Type {
+		case tString:
+			val, err := ast.Left.GetStringField(v)
+			if err != nil {
+				return false, err
+			}
+			return strings.Compare(val, ast.Right.StrVal) >= 0, nil
+
+		case tInt:
+			val, err := ast.Left.GetIntField(v)
+			if err != nil {
+				return false, err
+			}
+			return val >= ast.Right.IntVal, nil
+
+		default:
+			return false, fmt.Errorf("%s not implemented for %s", ast.Op,
 				ast.Right.Type)
 		}
 
 	case tInt:
-		return idx == ast.Left.Int, nil
+		return idx == ast.Left.IntVal, nil
 
 	default:
 		return false, fmt.Errorf("Comparative.Eval %s not implemented yet",
@@ -345,7 +436,7 @@ func (ast *comparative) Eval(idx int, v interface{}) (bool, error) {
 type atom struct {
 	Type   tokenType
 	StrVal string
-	Int    int
+	IntVal int
 }
 
 func (a *atom) String() string {
@@ -354,7 +445,7 @@ func (a *atom) String() string {
 		return fmt.Sprintf("%q", a.StrVal)
 
 	case tInt:
-		return fmt.Sprintf("%v", a.Int)
+		return fmt.Sprintf("%v", a.IntVal)
 
 	default:
 		return fmt.Sprintf("{atom %d}", a.Type)
@@ -369,4 +460,20 @@ func (a *atom) GetString() (string, error) {
 	default:
 		return "", fmt.Errorf("not string value %s", a.Type)
 	}
+}
+
+func (a *atom) GetStringField(value interface{}) (string, error) {
+	field, err := a.GetString()
+	if err != nil {
+		return "", err
+	}
+	return GetString(value, field)
+}
+
+func (a *atom) GetIntField(value interface{}) (int, error) {
+	field, err := a.GetString()
+	if err != nil {
+		return 0, err
+	}
+	return GetInt(value, field)
 }
