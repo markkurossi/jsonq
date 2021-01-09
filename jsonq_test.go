@@ -105,6 +105,29 @@ func TestGetters(t *testing.T) {
 	}
 }
 
+func TestGet(t *testing.T) {
+	var v interface{}
+	err := json.Unmarshal([]byte(assign), &v)
+	if err != nil {
+		t.Fatalf("json.Unmarshal failed: %s", err)
+	}
+	result, err := Ctx(v).
+		Select(`issue.changelog.items[fieldId=="assignee"]`).
+		Get()
+	if err != nil {
+		t.Fatalf("Get failed: %s", err)
+	}
+	for _, r := range result {
+		val, err := GetString(r, "fieldId")
+		if err != nil {
+			t.Fatalf("GetString failed: %s", err)
+		}
+		if val != "assignee" {
+			t.Errorf("Get failed: got %s, expected 'assignee'", val)
+		}
+	}
+}
+
 type Issue struct {
 	Key       string `jsonq:"issue.key"`
 	Name      string `jsonq:"issue.fields.project.name"`

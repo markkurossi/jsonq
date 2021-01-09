@@ -66,6 +66,14 @@ func (e *Error) Error() string {
 	return fmt.Sprintf("jsonq: Extract(nil %s)", e.Type)
 }
 
+// Get gets the current selection from the context.
+func (ctx *Context) Get() ([]interface{}, error) {
+	if ctx.err != nil {
+		return nil, ctx.err
+	}
+	return ctx.selection, nil
+}
+
 // Extract extracts values from the current selection into the
 // argument value object.
 func (ctx *Context) Extract(v interface{}) error {
